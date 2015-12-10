@@ -1,0 +1,4 @@
+(lp1
+S'teste2.txt'
+p2
+a.
