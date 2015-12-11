@@ -1,0 +1,8 @@
+(lp1
+S'teste2.txt'
+p2
+aS'teste.txt'
+p3
+aS'lol.txt'
+p4
+a.
