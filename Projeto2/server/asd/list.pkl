@@ -1,6 +1,6 @@
 (lp1
-S'teste2.txt'
+S'teste.txt'
 p2
-aS'teste.txt'
+aS'lol.txt'
 p3
 a.

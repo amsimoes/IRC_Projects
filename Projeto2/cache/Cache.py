@@ -108,7 +108,7 @@ def upload(sock_sv, connection):
 	print 'recebido do cliente = ', l
 
 	f.write(l)
-	print 'Ficheiro recebido do cliente... A enviar para o SV...'
+	log('Ficheiro recebido do cliente... A enviar para o SV...')
 	f.close()
 
 	if server_upload(sock_sv, file_name) == 1:
@@ -130,7 +130,7 @@ def server_download(sock_sv, fn): #download
 
 	if confirm != 0:
 	    with open(fn, 'wb') as f:
-	        print 'File opened'
+	        log('File opened')
 	        data = sock_sv.recv(1024)
 	        print "data =", data
 	        # write data to a file
@@ -151,7 +151,6 @@ def download(sock_sv, connection):
 	print 'Ficheiro pedido =', file_name
 
 	if os.path.isfile(file_name) or server_download(sock_sv, file_name) == 0:   # Se ficheiro existir
-	    print 'hey jude'
 	    connection.send('1')
 
 	    f = open(file_name, 'rb')
@@ -178,7 +177,7 @@ def receive(connection):
 
 
 def operations(conn,addr):
-	print 'A espera de login...'
+	log('A espera de login...')
 	option, username, password = receive(connection)
 	sock_sv = createsocket(serverPort)
 	sock_sv.send('3\ndefault\ndefault')

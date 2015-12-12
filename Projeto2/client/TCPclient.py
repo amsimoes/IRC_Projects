@@ -10,7 +10,7 @@ import time
 serverPort = 8000
 cachePort = 8001
 
-DEBUG = True
+DEBUG = False
 
 def log(s):
     if DEBUG:
@@ -49,7 +49,7 @@ def upload(sockfd, username, password):
         f = open(file_name, 'rb')
         s = f.read(1024)
         while s:
-            print 'Sending file...\n'
+            log('Sending file...\n')
             sockfd.send(s)
             s = f.read(1024)
         print 'Sent\n'
@@ -68,7 +68,7 @@ def download(sockfd, username, password):
     tmp = eval(sockfd.recv(1))
     if tmp != 0:
         with open(file_name, 'wb') as f:
-            print 'File opened'
+            log('File opened')
             data = sockfd.recv(1024)
             print "data =", data
             # write data to a file
@@ -80,12 +80,12 @@ def download(sockfd, username, password):
 
 
 def listar(sockfd, username, password):
-    print 'A enviar operacao...'
+    log('A enviar operacao...')
     sockfd.send('3\n'+username+'\n'+password)
-    print 'A espera de confirm...'
+    log('A espera de confirm...')
     tmp = sockfd.recv(1)
     confirm = eval(tmp)
-    print 'confirm recebido =', confirm
+    # print 'confirm recebido =', confirm
     if confirm == 0:
         print '-- LISTA VAZIA --'
     else:

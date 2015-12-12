@@ -13,6 +13,8 @@ serverPort = 8000
 users = {}  # quando for preciso mudar -> global users
 file_list = []
 
+DEBUG = True
+
 
 def log(s):
     if DEBUG:
@@ -47,12 +49,12 @@ def upload(connection, userpath):
         print '- Ficheiro ja presente no diretorio do user.'
         file_name = userpath+file_name+'(1)'
 
-    print 'before send'
+    log('before send')
     connection.send('1')
-    print 'after send'
+    log('after send')
 
     l = connection.recv(1024)   # MUDAR
-    print 'after receive'
+    log('after receive')
 
     f = open(file_name, 'wb')
     f.write(l)
@@ -145,7 +147,7 @@ def receive(connection):
 
 
 def receive_option(connection):
-    print 'A espera de receber opcao...'
+    log('A espera de receber opcao...')
     tmp = connection.recv(1)
     while not tmp:
         tmp = connection.recv(10)
@@ -154,7 +156,9 @@ def receive_option(connection):
 
 
 def operations(connection, addr):
+    print '\n# ----------------------------------------------------- #'
     print '# Cliente da maquina', addr[0],'ligado pela porta', addr[1],'!'
+    print '# ----------------------------------------------------- #\n'
     option, username, password = receive(connection)
 
     if option in [1, 2]:  # login/check if user exists
@@ -164,7 +168,7 @@ def operations(connection, addr):
         if confirm != 1:
             option = 2
     while option not in [0, 2, 6]:  # Login feito com sucesso
-        print 'AFTER LOGIN...'
+        log('AFTER LOGIN...')
         option, username, password = receive(connection)
         # print 'option =', option
         if option == 0:
@@ -218,6 +222,6 @@ if __name__ == '__main__':
             users = pickle.load(input)
 
     while True:
-        print "Server listening at port", serverPort, "..."
+        print "..... Server listening at port", serverPort, "....."
         connection, addr = sock.accept()
         thread.start_new_thread(operations, tuple([connection,addr]))
