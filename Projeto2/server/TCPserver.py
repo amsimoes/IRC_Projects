@@ -1,16 +1,14 @@
-# usr/bin/env_python
-# coding = utf-8
-
 import sys
 import signal
 import os
 import socket
 import cPickle as pickle
 import thread
+import time
 
 serverPort = 8000
 
-users = {}  # quando for preciso mudar -> global users
+users = {}  
 file_list = []
 
 DEBUG = True
@@ -28,7 +26,7 @@ def sighandler(signal, frame):
 
 def upload(connection, userpath):
     global file_list
-    print '** UPLOAD **'
+    print '\n** UPLOAD **\n'
 
     temp = connection.recv(128)
     temp = temp.splitlines()
@@ -36,31 +34,35 @@ def upload(connection, userpath):
 
     file_name = temp[0]
 
-    # print 'input recebido =', file_name
-
     if file_list.count(file_name) == 0:
         print '- Ficheiro ainda nao existente'
         file_list.append(file_name)
         with open(userpath+'list.pkl', 'wb') as f:
             pickle.dump(file_list, f)
             print '- Ficheiro adicionado a lista'
-        file_name = userpath+file_name
     else:
         print '- Ficheiro ja presente no diretorio do user.'
-        file_name = userpath+file_name+'(1)'
+        connection.send('0')
+    file_name = userpath+file_name
 
     log('before send')
     connection.send('1')
     log('after send')
 
-    l = connection.recv(1024)   # MUDAR
+    f = open(file_name, 'wb')
+
+    l = connection.recv(1024)
+    tmp = l.splitlines()
+    print 'tmp=', tmp
+    while tmp[-1] != 'fim':
+        f.write(l)
+        l = connection.recv(1024)
+        tmp = l.splitlines();
     log('after receive')
 
-    f = open(file_name, 'wb')
-    f.write(l)
-
     f.close()
-    print '** Fim upload **'
+
+    print '\n** Fim upload **'
 
     return repr(0)
 
@@ -71,7 +73,6 @@ def download(connection, userpath):
 
     temp = connection.recv(128)
     file_name = temp.splitlines()
-    print 'file_name =', file_name
     file_name = file_name[0]
     print 'Ficheiro pedido =', file_name
     file_name = userpath+'/'+file_name
@@ -82,10 +83,11 @@ def download(connection, userpath):
         f = open(file_name, 'rb')
         l = f.read(1024)
         while l:
-            print 'A enviar ao cliente...'
+            print 'a enviar!!!'
             connection.send(l)
             l = f.read(1024)
         f.close()
+        connection.send('\n1')
         print 'Envio concluido.'
     else:   # Ficheiro nao existente
         print 'Ficheiro nao existente!'
@@ -103,10 +105,9 @@ def listar(connection):
     else:
         connection.send('1')    # confirm
         for i in range(len(file_list)):
-            # print 'inside for'
             connection.send(file_list[i]+'\n')
         print 'Fim da listagem.\n'
-        # connection.send('1\n')  # enviado para marcar fim da lista
+        connection.send('1')  # enviado para marcar fim da lista
 
 
 def login(option, username, password):
@@ -133,9 +134,8 @@ def login(option, username, password):
 
 
 def receive(connection):
-    print 'A receber.........'
+    print '\nA receber.........\n'
     tmp = connection.recv(128)
-    # print 'RECEIVED = ', tmp
     if not tmp:
         print 'VAZIO.'
         return repr(0)
@@ -157,13 +157,13 @@ def receive_option(connection):
 
 def operations(connection, addr):
     print '\n# ----------------------------------------------------- #'
-    print '# Cliente da maquina', addr[0],'ligado pela porta', addr[1],'!'
+    print '# Cliente da maquina', addr[0],'ligado pela porta', addr[1],'!#'
     print '# ----------------------------------------------------- #\n'
     option, username, password = receive(connection)
-
+    print 'Operacao recebida = ', option
     if option in [1, 2]:  # login/check if user exists
         confirm = login(option, username, password)
-        print '[SERVER] confirm = ', confirm
+        print 'Confirm enviado =', confirm
         connection.send(repr(confirm))
         if confirm != 1:
             option = 2
@@ -191,7 +191,6 @@ def operations(connection, addr):
             else:
                 print 'Lista vazia!!!'
                 connection.send('0')
-            print 'fim'
         elif option == 4:
             if file_list:
                 download(connection, username+'/')
@@ -200,8 +199,10 @@ def operations(connection, addr):
                 connection.send('0')
         elif option == 5:
             upload(connection, username+'/')
+    print 'CLIENTE A TERMINAR...'
+    print "..... Server listening at port", serverPort, "....."
     connection.close()
-    thread.exit()
+    sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -211,7 +212,6 @@ if __name__ == '__main__':
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    # Receber nome
     host = socket.gethostname()
 
     sock.bind((host, serverPort))

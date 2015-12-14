@@ -1,6 +1,4 @@
 (lp1
 S'teste.txt'
 p2
-aS'lol.txt'
-p3
 a.

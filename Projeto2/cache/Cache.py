@@ -17,6 +17,11 @@ def log(s):
 		print s
 
 
+def sighandler(signal, frame):
+    print '\nCTRL+C detected! Exiting Server...'
+    sys.exit(0)
+
+
 def createsocket(port):
     # Criar socket TCP
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,40 +36,45 @@ def createsocket(port):
 
 
 def recv_fn(connection):
-    temp = connection.recv(128)
-    file_name = temp.splitlines()
-    print 'file_name =', file_name
-    file_name = file_name[0]
+	print 'A receber...'
+	temp = connection.recv(128)
+	file_name = temp.splitlines()
+	file_name = file_name[0]
 
-    return file_name
+	return file_name
 
 
 def listar(sock_sv, conn): 	# listar ficheiros do user default
-	print 'dentro do listar... a enviar op ao server'
+	log('dentro do listar... a enviar op ao server')
 	sock_sv.send('3\ndefault\ndefault\n')
 
-	print 'a espera de confirmacao...'
+	log('a espera de confirmacao...')
 	confirm = eval(sock_sv.recv(1))
 
 	if confirm == 0:
 		print '-- LISTA VAZIA --'
 		conn.send('0')
-	else:
+	elif confirm == 1:
 		conn.send('1')
-
-		# RECEBER DO SV
+		
 		tmp = sock_sv.recv(1024)
-		tmp = tmp.splitlines()
+		lista = tmp
+		temp = tmp.splitlines()
 
-		temp = tmp
+		while temp[-1] != '1':
+		    tmp = sock_sv.recv(1024)
+		    lista += tmp
+		    temp = tmp.splitlines()
 
+		tmp = lista.splitlines()
 		print '-- LISTA --'
-		for i in range(0,len(tmp)):
+		for i in range(0,len(tmp)-1):
 		    print 'Ficheiro',i+1,' =', tmp[i]
 
 		# ENVIAR AO CLIENTE
-		for i in range(0,len(tmp)):
+		for i in range(0,len(tmp)-1):
 			conn.send(tmp[i]+'\n')
+		conn.send('1')
 	return confirm
 
 
@@ -83,9 +93,10 @@ def server_upload(sock_sv, fn): #upload
 		s = f.read(1024)
 
 		while s:
-			print 'Sending file...\n'
+			log('Sending file...')
 			sock_sv.send(s)
 			s = f.read(1024)
+		sock_sv.send('\nfim\n')
 		print('Sent.\n')
 
 		f.close()
@@ -98,28 +109,35 @@ def upload(sock_sv, connection):
 	print '** CLIENT UPLOADING **\n'
 
 	file_name = recv_fn(connection)
-	print 'file_name = ', file_name
+	print 'File name = ', file_name
 
 	connection.send('1')
+	log('after send')
 
 	f = open(file_name, 'wb')
-
 	l = connection.recv(1024)
-	print 'recebido do cliente = ', l
 
-	f.write(l)
+	tmp = l.splitlines()
+
+
+	while tmp[-1] != 'fim':
+		f.write(l)
+		l = connection.recv(1024)
+		tmp = l.splitlines()
+
 	log('Ficheiro recebido do cliente... A enviar para o SV...')
 	f.close()
 
 	if server_upload(sock_sv, file_name) == 1:
 		print("Erro upload (server)")
 
+	os.remove(file_name);
 
 	print '** Fim upload **'
 	return repr(0)
 
 
-# Server - Cache
+# Server -> Cache
 def server_download(sock_sv, fn): #download
 	print("Downloading from server")
 
@@ -131,11 +149,17 @@ def server_download(sock_sv, fn): #download
 	if confirm != 0:
 	    with open(fn, 'wb') as f:
 	        log('File opened')
+
 	        data = sock_sv.recv(1024)
-	        print "data =", data
-	        # write data to a file
-	        f.write(data)
-	    print 'Ficheiro obtido com sucesso!'
+	        tmp = data.splitlines()
+	        f.write(tmp[0])
+
+            while tmp[-1] != '1':
+                log('inside download write!!')
+                f.write(data)
+                data = sock_sv.recv(1024)
+                tmp = data.splitlines()
+	    print 'Ficheiro obtido do SV com sucesso!'
 	    return 0
 	else:
 		print '- ERRO DOWNLOAD -\nFicheiro inexistente no servidor.'
@@ -155,19 +179,22 @@ def download(sock_sv, connection):
 
 	    f = open(file_name, 'rb')
 	    l = f.read(1024)
+
 	    while l:
 	        print 'A enviar ao cliente...'
 	        connection.send(l)
 	        l = f.read(1024)
 	    f.close()
-	    print 'Envio concluido.'
+	    connection.send('\n1')
+
+	    print 'Envio pela cache concluido.'
 	else:   # Ficheiro nao existente
 	    print 'Ficheiro nao existente!'
 	    connection.send('0')
 
 
 def receive(connection):
-	# print 'A receber...'
+	log('A receber......')
 	tmp = connection.recv(128)
 	tmp = tmp.splitlines()
 	operation = eval(tmp[0])
@@ -187,13 +214,12 @@ def operations(conn,addr):
 		option, username, password = receive(connection)
 		print 'Operacao recebida = ', option
 		if option == 3:	 # LISTAR
-			print 'a ir para a listar...'
 			listar(sock_sv, conn)
 		elif option == 4:	# DOWNLOAD
 			download(sock_sv, conn)
 		elif option == 5:	# UPLOAD
 			upload(sock_sv, conn)
-	print 'A fechar coneccao...'
+	print 'A fechar ligacao...'
 	sock_sv.send('6\ndefault\ndefault')
 	sock_sv.close()
 	conn.close()
@@ -201,18 +227,18 @@ def operations(conn,addr):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, sighandler)
+
 	# Criar socket TCP
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-	# Receber nome
 	host = socket.gethostname()
 
 	sock.bind((host, cachePort))
-	sock.listen(5)	# maximo em maior parte dos sistemas
+	sock.listen(5)	
 
 	while True:
 		print 'Cache server listening at port', cachePort, '...'
 		connection, addr = sock.accept()
 		thread.start_new_thread(operations, tuple([connection,addr]))
-		print 'CLIENTE com a porta', addr[1], 'IN!!!'

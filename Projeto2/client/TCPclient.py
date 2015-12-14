@@ -1,11 +1,7 @@
-# usr/bin/env_python
-# coding = utf-8
-
 import sys
 import os
-import signal
 import socket
-import time
+
 
 serverPort = 8000
 cachePort = 8001
@@ -15,10 +11,6 @@ DEBUG = False
 def log(s):
     if DEBUG:
         print s
-
-def sighandler(signal, frame):
-    print '\nCTRL+C detected. Exiting client...'
-    sys.exit(0)
 
 
 def createsocket(port):
@@ -36,7 +28,7 @@ def createsocket(port):
 
 def upload(sockfd, username, password):
     print '-- UPLOAD --\n'
-    file_name = raw_input('Nome do ficheiro:')
+    file_name = raw_input('Nome do ficheiro: ')
 
     # Verificar se o ficheiro existe no diretorio
     if os.path.isfile(file_name) and (os.path.getsize(file_name) > 0):
@@ -44,25 +36,33 @@ def upload(sockfd, username, password):
         sockfd.send(file_name+'\n')
         print 'file sent =', file_name
 
-        sockfd.recv(1)
+        confirm = sockfd.recv(1)
+
+        if confirm == '0':
+            log('Ficheiro ja existente no servidor.')
 
         f = open(file_name, 'rb')
         s = f.read(1024)
+        print s
         while s:
-            log('Sending file...\n')
+            log('Sending file...')
             sockfd.send(s)
+            log('sent!!')
             s = f.read(1024)
+        sockfd.send('\nfim')
         print 'Sent\n'
+        
         f.close()
     else:
-        print 'Erro! Ficheiro vazio ou inexistente!\n'
+        'Erro! Ficheiro vazio ou inexistente!\n'
     raw_input('\nPrima para voltar ao Menu Cliente.')
 
 
 def download(sockfd, username, password):
+    print '-- DOWNLOAD --'
     sockfd.send('4\n'+username+'\n'+password)
 
-    file_name = raw_input('Nome do ficheiro:')
+    file_name = raw_input('Nome do ficheiro: ')
     sockfd.send(file_name+'\n')
 
     tmp = eval(sockfd.recv(1))
@@ -70,9 +70,14 @@ def download(sockfd, username, password):
         with open(file_name, 'wb') as f:
             log('File opened')
             data = sockfd.recv(1024)
-            print "data =", data
+            tmp = data.splitlines()
+            f.write(tmp[0])
+            while tmp[-1] != '1':
+                log('Inside download write!!')
+                f.write(data)
+                data = sockfd.recv(1024)
+                tmp = data.splitlines()
             # write data to a file
-            f.write(data)
         print 'Sucessfully got the file!'
     else:
         print '- ERRO DOWNLOAD -\nFicheiro inexistente.'
@@ -84,16 +89,29 @@ def listar(sockfd, username, password):
     sockfd.send('3\n'+username+'\n'+password)
     log('A espera de confirm...')
     tmp = sockfd.recv(1)
+
+    while not tmp:
+        tmp = sockfd.recv(1)
+
     confirm = eval(tmp)
-    # print 'confirm recebido =', confirm
+    
+
     if confirm == 0:
         print '-- LISTA VAZIA --'
-    else:
+    elif confirm == 1:
         tmp = sockfd.recv(1024)
-        tmp = tmp.splitlines()
+        lista = tmp
+        temp = tmp.splitlines()
+        print temp
 
+        while temp[-1] != '1':
+            tmp = sockfd.recv(1024)
+            lista += tmp
+            temp = tmp.splitlines()
+
+        tmp = lista.splitlines()
         print '-- LISTA --'
-        for i in range(0,len(tmp)):
+        for i in range(0,len(tmp)-1):
             print 'Ficheiro',i+1,' =', tmp[i]
 
 
@@ -132,7 +150,6 @@ def user_menu(sockfd, username, password):
             sockfd.send('6\n'+username+'\n'+password)
         elif option == 5:
             sockfd.send('6\nbye\nbye')
-            # print 'EXITING...'
             sys.exit(0)
 
 
@@ -165,8 +182,8 @@ def login(sockfd, option, username, password):
 
 def user(sockfd, option):
     username = raw_input('Nome do utilizador: ')
-    while not username:
-        username = raw_input('Nome vazio e invalido. Tente outra vez: ')
+    while not username or username == 'default':
+        username = raw_input('Nome vazio ou invalido. Tente outra vez: ')
     password = raw_input('Password: ')
     while not password:
         password = raw_input('Password vazia e invalida. Tente outra vez: ')
@@ -201,7 +218,6 @@ def menu():
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, sighandler)
     print 'Bem vindo ao cliente!'
     menu()
     print 'Bye-bye!'

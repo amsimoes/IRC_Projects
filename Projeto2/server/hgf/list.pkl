@@ -1,4 +1,0 @@
-(lp1
-S'teste.txt'
-p2
-a.

@@ -1,8 +1,8 @@
 (lp1
 S'teste2.txt'
 p2
-aS'teste.txt'
+aS'teste3.txt'
 p3
-aS'lol.txt'
+aS'teste4.txt'
 p4
 a.
