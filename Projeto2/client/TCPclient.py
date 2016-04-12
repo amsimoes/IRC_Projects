@@ -102,7 +102,7 @@ def listar(sockfd, username, password):
         tmp = sockfd.recv(1024)
         lista = tmp
         temp = tmp.splitlines()
-        print temp
+        
 
         while temp[-1] != '1':
             tmp = sockfd.recv(1024)

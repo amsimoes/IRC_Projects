@@ -227,7 +227,7 @@ def operations(conn,addr):
 
 
 if __name__ == '__main__':
-    signal.signal(signal.SIGINT, sighandler)
+	signal.signal(signal.SIGINT, sighandler)
 
 	# Criar socket TCP
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
